@@ -24,13 +24,13 @@ The dashboard is running in a transient container. It does not store data.  Ther
 
 1.  Update the dashboard in the UI
 1.  Export the JSON
-1.  Save the JSOn in fourkeys_dashboard.json
+1.  Save the JSON in fourkeys_dashboard.json
 1.  Re-build the image and re-deploy the container
 
 To rebuild and deploy the container, you can run `gcloud builds submit` in this directory. 
 
 
 ## To deploy dashboard
-If using [Terraform](https://www.terraform.io), please see the [setup](setup/) to create the resources.  
+If using [Terraform](https://www.terraform.io), please see the [setup](../setup/) to create the resources.  
 
 Once the resource is created or if you are not using Terraform, feel free to build and deploy outside of Terraform by running `gcloud builds submit` in this directory. 

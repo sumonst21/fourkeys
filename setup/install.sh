@@ -43,12 +43,14 @@ echo "••••••••🔑••🔑••🔑••🔑•••••�
 echo "Building containers…"
 gcloud services enable cloudbuild.googleapis.com
 gcloud services enable containerregistry.googleapis.com --project=${FOURKEYS_PROJECT}
+gcloud services enable secretmanager.googleapis.com
+
 PARENT_PROJECTNUM=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
 FOURKEYS_PROJECTNUM=$(gcloud projects describe ${FOURKEYS_PROJECT} --format='value(projectNumber)')
 gcloud projects add-iam-policy-binding ${FOURKEYS_PROJECT} --member="serviceAccount:${PARENT_PROJECTNUM}@cloudbuild.gserviceaccount.com" --role="roles/storage.admin"
 
 # launch container builds in background/parallel
-gcloud builds submit ../event_handler --tag=gcr.io/${FOURKEYS_PROJECT}/event-handler --project=${PARENT_PROJECT} > event_handler.containerbuild.log & 
+gcloud builds submit ../event-handler --tag=gcr.io/${FOURKEYS_PROJECT}/event-handler --project=${PARENT_PROJECT} > event_handler.containerbuild.log & 
 
 if [[ ! -z "$GIT_SYSTEM" ]]; then
     gcloud builds submit ../bq-workers/${GIT_SYSTEM}-parser --tag=gcr.io/${FOURKEYS_PROJECT}/${GIT_SYSTEM}-parser --project=${PARENT_PROJECT} > ${GIT_SYSTEM}-parser.containerbuild.log & 
@@ -56,6 +58,10 @@ fi
 
 if [[ ! -z "$CICD_SYSTEM" && "$CICD_SYSTEM" != "$GIT_SYSTEM" ]]; then
     gcloud builds submit ../bq-workers/${CICD_SYSTEM}-parser --tag=gcr.io/${FOURKEYS_PROJECT}/${CICD_SYSTEM}-parser --project=${PARENT_PROJECT} > ${CICD_SYSTEM}-parser.containerbuild.log & 
+fi
+
+if [[ ! -z "$INCIDENT_SYSTEM" ]]; then
+    gcloud builds submit ../bq-workers/${INCIDENT_SYSTEM}-parser --tag=gcr.io/${FOURKEYS_PROJECT}/${INCIDENT_SYSTEM}-parser --project=${PARENT_PROJECT} > ${INCIDENT_SYSTEM}-parser.containerbuild.log & 
 fi
 
 # Dashboard image
@@ -86,14 +92,11 @@ if [ $GENERATE_DATA == "yes" ]; then
     fi
     
     echo "generating data…"
-    WEBHOOK=$(terraform output -raw event_handler_endpoint) SECRET=$(terraform output -raw event_handler_secret) TOKEN=${TOKEN} python3 ../data_generator/generate_data.py --vc_system=${GIT_SYSTEM}
+    WEBHOOK=$(terraform output -raw event_handler_endpoint) SECRET=$(terraform output -raw event_handler_secret) TOKEN=${TOKEN} python3 ../data-generator/generate_data.py --vc_system=${GIT_SYSTEM}
 fi
 
 echo "••••••••🔑••🔑••🔑••🔑••••••••"
-echo "configuring Grafana dashboard…"
-DASHBOARD_URL="$(terraform output -raw dashboard_endpoint)/d/yVtwoQ4nk/four-keys?orgId=1"
-
-echo -e "Please visit ${GREEN}$DASHBOARD_URL${NOCOLOR} to view your data in the dashboard template."
+echo -e "Visit ${GREEN}$(terraform output -raw dashboard_endpoint)${NOCOLOR} to view your data in the dashboard template."
 
 if [[ ! -z "$CICD_SYSTEM" ]]; then
     echo "••••••••🔑••🔑••🔑••🔑••••••••"

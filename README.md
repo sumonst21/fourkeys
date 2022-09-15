@@ -44,18 +44,20 @@ This diagram shows the design of the Four Keys system:
 
 * `bq-workers/`
   * Contains the code for the individual BigQuery workers.  Each data source has its own worker service with the logic for parsing the data from the Pub/Sub message. For example, GitHub has its own worker which only looks at events pushed to the GitHub-Hookshot Pub/Sub topic
-* `connectors/`
-  * Contains the code for the DataStudio Connector which generates the Four Keys Dashboard
-* `data_generator/`
+* `dashboard/`
+  * Contains the code for the Grafana dashboard displaying the Four Keys metrics
+* `data-generator/`
   * Contains a Python script for generating mock GitHub or Gitlab data.
-* `event_handler/`
-  * Contains the code for the `event_handler`, which is the public service that accepts incoming webhooks.  
+* `event-handler/`
+  * Contains the code for the `event-handler`, which is the public service that accepts incoming webhooks.  
 * `queries/`
   * Contains the SQL queries for creating the derived tables.
 * `setup/`
   * Contains the code for setting up and tearing down the Four Keys pipeline. Also contains a script for extending the data sources.
 * `shared/`
   * Contains a shared module for inserting data into BigQuery, which is used by the `bq-workers`
+* `terraform/`
+  * Contains Terraform modules and submodules, and examples for deploying Four Keys using Terraform.
 
 # How to use 
 
@@ -69,7 +71,7 @@ _The project uses Python 3 and supports data extraction for Cloud Build and GitH
     1.  Create the Pub/Sub topics and subscriptions.
     1.  Enable the Google Secret Manager and create a secret for your GitHub repo.
     1.  Create a BigQuery dataset, tables and views.
-    1.  Open up a browser tab to connect your data to a DataStudio dashboard template.
+    1.  Output a URL for the newly generated Grafana dashboard. 
 1.  Set up your development environment to send events to the webhook created in the second step.
     1.  Add the secret to your GitHub webhook.
 
@@ -98,7 +100,7 @@ To run outside of the setup script:
 1. Run the following command:
 
    ```sh
-   python3 data_generator/generate_data.py --vc_system=github
+   python3 data-generator/generate_data.py --vc_system=github
    ```
 
    You can see these events being run through the pipeline:

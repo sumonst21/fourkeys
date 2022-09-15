@@ -45,7 +45,7 @@ This guide describes how to set up Four Keys with your GitHub or GitLab project.
             * Choose the appropriate option for your CICD system, or choose "other" to skip CICD integration
         * _(see `/README.md#extending-to-other-event-sources` to integrate event sources not available during setup)_
     *   Would you like to generate mock data? (y/N)
-        *   If you select yes, a script will run through and send mock GitLab or GitHub events to your event-handler.  This will populate your dashboard with mock data.  The mock data will include the work "mock" in the source. You can generate mock data without using the setup script. See [Generating mock data](../readme.md). 
+        *   If you select yes, a script will run through and send mock GitLab or GitHub events to your event-handler.  This will populate your dashboard with mock data.  The mock data will include the work "mock" in the source. You can generate mock data without using the setup script. See [Generating mock data](../README.md). 
             *   To exclude the mock data from the dashboard, update the SQL script to filter out any source with the word mock in it by adding: `WHERE source not like "%mock"`.
 
 ### Making changes
@@ -61,7 +61,7 @@ Step by step, here's what's happening:
 1. Then it invokes `install.sh`, which is responsible for provisioning the infrastructure.
 1. `install.sh` runs `gcloud builds submit` commands to build the application containers that will be used in Cloud Run services.
 1. Then it invokes Terraform, which processes the configuration files (ending in `.tf`) to provision all of the necessary infrastructure into the speficied Cloud project.
-1. If you've chosen to generate mock data, the script then calls the ["data generator" python application](/data_generator/) to submit several synthetic webhook events to the event-handler service that was just created.
+1. If you've chosen to generate mock data, the script then calls the ["data generator" python application](/data-generator/) to submit several synthetic webhook events to the event-handler service that was just created.
 1. Finally, the script prints information about next steps, including configuring webhooks and visiting the dashboard.
 
 ### Managing Terraform State
@@ -191,3 +191,46 @@ Four Keys uses GitLab and/or GitHub issues to track incidents.
 1.  In the body of the issue, input `root cause: {SHA of the commit}`.
 
 When the incident is resolved, close the issue. Four Keys will measure the incident from the time of the deployment to when the issue is closed.
+
+#### Pager Duty Support
+If Pager Duty support is enabled (passed via the `parsers` variable), this secret is required and used for verifying Pager Duty events received belong to us.
+
+To create this secret:
+
+1. You will need a [Pager Duty General Access REST API Key](https://support.pagerduty.com/docs/api-access-keys#section-generate-a-general-access-rest-api-key). These can only be created by users that are >=Global Admin.
+2. Using said API key, [create a webhook subscription](https://developer.pagerduty.com/api-reference/b3A6MjkyNDc4NA-create-a-webhook-subscription). The example below creates an account-wide subscription, but depending on your Four Keys architecture, you could choose to create individual subscriptions per-project or service.
+
+```
+API_TOKEN=<your_api_token>
+FOURKEYS_ENDPOINT=<your_fourkeys_endpoint>
+curl-- location-- request POST
+  'https://api.pagerduty.com/webhook_subscriptions'-- header
+  'Authorization: Token token=${API_TOKEN}'-- header
+  'Content-Type: application/json'-- header
+  'Accept: application/vnd.pagerduty+json;version=2'-- data - raw '{
+    "webhook_subscription": {
+      "delivery_method": {
+        "type": "http_delivery_method",
+        "url": "${FOURKEYS_ENDPOINT}"
+      },
+      "description": "Sends PagerDuty v3 webhook events to DORA metrics.",
+      "events": [
+        "incident.resolved",
+        "incident.triggered"
+      ],
+      "filter": {
+        "type": "account_reference"
+      },
+      "type": "webhook_subscription"
+    }
+  }'
+```
+
+3. The Pager Duty webhook subscription creation API response will include a secret (_only_ returned on creation). This secret needs to be stored in Secret Manager in your Four Keys project as `pager_duty_secret`.
+
+```
+SECRET=<your_pager_duty_secret>
+echo $SECRET | tr -d '\n' | gcloud beta secrets create pager_duty_secret \
+    --replication-policy=automatic \
+    --data-file=-
+```
